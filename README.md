@@ -5,6 +5,11 @@ shows the notification and **the phone stays locked**: PIN, password and fingerp
 required. No root.
 
 **Designed & built by Tamim Ahmed Rijan.**
+<img width="1080" height="2340" alt="Screenshot_20261028_225906_NotifyWake" src="https://github.com/user-attachments/assets/1484d325-ba8d-4357-9c9b-eb1ef40e111e" />
+<img width="1080" height="2340" alt="Screenshot_20261028_225904_NotifyWake" src="https://github.com/user-attachments/assets/db744515-1877-40e9-b220-c15852c45167" />
+<img width="1080" height="2340" alt="Screenshot_20261028_225858_NotifyWake" src="https://github.com/user-attachments/assets/520501d9-b926-4655-acc6-bbd720e123b4" />
+<img width="1080" height="2340" alt="Screenshot_20261028_225856_NotifyWake" src="https://github.com/user-attachments/assets/9601ba46-5767-48f1-9d21-93f81507702d" />
+
 
 - Kotlin + Jetpack Compose (Material 3), minSdk 26 (Android 8.0), targetSdk 35 (Android 15)
 - APK: `../release/NotifyWake-1.1.0.apk` (about 1 MB)
