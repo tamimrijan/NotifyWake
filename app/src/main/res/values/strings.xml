@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NotifyWake</string>
+    <string name="listener_label">NotifyWake – wake screen on notifications</string>
+    <string name="channel_test">Test notifications</string>
+    <string name="channel_backup">Backup screen wake (silent)</string>
+</resources>
