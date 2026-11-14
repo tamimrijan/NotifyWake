@@ -10,6 +10,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -24,9 +28,10 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ShortNavigationBar
+import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -61,8 +66,9 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            NotifyWakeTheme {
-                AppRoot(store)
+            val settings by rememberWakeSettings(store)
+            NotifyWakeTheme(wallpaperColors = settings.wallpaperColors) {
+                AppRoot(store, settings)
             }
         }
     }
@@ -76,9 +82,8 @@ enum class Tab(val label: String, val selectedIcon: ImageVector, val icon: Image
 }
 
 @Composable
-private fun AppRoot(store: SettingsStore) {
+private fun AppRoot(store: SettingsStore, settings: WakeSettings) {
     val ctx = LocalContext.current
-    val settings by rememberWakeSettings(store)
     val connected by WakeListenerService.connected.collectAsStateWithLifecycle()
 
     var refreshTick by remember { mutableIntStateOf(0) }
@@ -104,30 +109,39 @@ private fun AppRoot(store: SettingsStore) {
     if (showPicker) {
         BackHandler { showPicker = false }
         AppPickerScreen(store = store, onBack = { showPicker = false })
-    } else {
-        BackHandler(enabled = tab != Tab.HOME) { tab = Tab.HOME }
-        Scaffold(
-            bottomBar = {
-                NavigationBar {
-                    Tab.entries.forEach { t ->
-                        NavigationBarItem(
-                            selected = tab == t,
-                            onClick = { tab = t },
-                            label = { Text(t.label) },
-                            icon = {
-                                BadgedBox(badge = {
-                                    if (t == Tab.PERMISSIONS && pending > 0) Badge { Text("$pending") }
-                                }) {
-                                    Icon(if (tab == t) t.selectedIcon else t.icon, contentDescription = null)
-                                }
-                            },
-                        )
-                    }
+        return
+    }
+
+    BackHandler(enabled = tab != Tab.HOME) { tab = Tab.HOME }
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
+        bottomBar = {
+            ShortNavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
+                Tab.entries.forEach { t ->
+                    ShortNavigationBarItem(
+                        selected = tab == t,
+                        onClick = { tab = t },
+                        label = { Text(t.label) },
+                        icon = {
+                            BadgedBox(badge = {
+                                if (t == Tab.PERMISSIONS && pending > 0) Badge { Text("$pending") }
+                            }) {
+                                Icon(if (tab == t) t.selectedIcon else t.icon, contentDescription = null)
+                            }
+                        },
+                    )
                 }
-            },
-        ) { outer ->
-            Box(Modifier.padding(bottom = outer.calculateBottomPadding())) {
-                when (tab) {
+            }
+        },
+    ) { outer ->
+        AnimatedContent(
+            targetState = tab,
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            label = "tab",
+            modifier = Modifier.padding(bottom = outer.calculateBottomPadding()),
+        ) { current ->
+            Box {
+                when (current) {
                     Tab.HOME -> HomeTab(
                         settings = settings,
                         status = status,

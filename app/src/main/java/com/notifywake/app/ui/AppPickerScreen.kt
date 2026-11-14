@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
-
 package com.notifywake.app.ui
 
 import android.content.Context
@@ -7,35 +5,39 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.util.LruCache
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.toShape
+import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -81,7 +83,7 @@ fun AppPickerScreen(store: SettingsStore, onBack: () -> Unit) {
             TopAppBar(
                 title = {
                     Column {
-                        Text("Choose apps")
+                        Text("Choose apps", style = MaterialTheme.typography.titleLarge)
                         Text(
                             "${settings.selectedApps.size} selected",
                             style = MaterialTheme.typography.bodySmall,
@@ -93,14 +95,6 @@ fun AppPickerScreen(store: SettingsStore, onBack: () -> Unit) {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                },
-                actions = {
-                    TextButton(onClick = {
-                        store.setSelectedApps(settings.selectedApps + visible.map { it.packageName })
-                    }) { Text("Select all") }
-                    TextButton(onClick = {
-                        store.setSelectedApps(settings.selectedApps - visible.map { it.packageName }.toSet())
-                    }) { Text("Clear") }
                 },
             )
         },
@@ -123,24 +117,60 @@ fun AppPickerScreen(store: SettingsStore, onBack: () -> Unit) {
                     }
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(28.dp),
+                shape = CircleShape,
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
             )
+            Row(
+                Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                FilledTonalButton(
+                    onClick = { store.setSelectedApps(settings.selectedApps + visible.map { it.packageName }) },
+                    shapes = ButtonDefaults.shapes(),
+                ) { Text("Select all") }
+                OutlinedButton(
+                    onClick = {
+                        store.setSelectedApps(settings.selectedApps - visible.map { it.packageName }.toSet())
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                ) { Text("Clear") }
+            }
+
             if (apps == null) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    LoadingIndicator(Modifier.size(72.dp))
                 }
             } else {
-                LazyColumn(Modifier.fillMaxSize()) {
-                    items(visible, key = { it.packageName }) { app ->
+                LazyColumn(
+                    Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+                ) {
+                    itemsIndexed(visible, key = { _, app -> app.packageName }) { i, app ->
                         val checked = app.packageName in settings.selectedApps
-                        AppRow(app, checked) { nowChecked ->
-                            store.setSelectedApps(
-                                if (nowChecked) settings.selectedApps + app.packageName
-                                else settings.selectedApps - app.packageName
-                            )
+                        SegmentedListItem(
+                            checked = checked,
+                            onCheckedChange = { now ->
+                                store.setSelectedApps(
+                                    if (now) settings.selectedApps + app.packageName
+                                    else settings.selectedApps - app.packageName
+                                )
+                            },
+                            shapes = ListItemDefaults.segmentedShapes(i, visible.size),
+                            leadingContent = { AppIcon(app.packageName) },
+                            supportingContent = {
+                                Text(app.packageName, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            },
+                            trailingContent = { Checkbox(checked = checked, onCheckedChange = null) },
+                        ) {
+                            Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
                     if (visible.isEmpty()) {
@@ -155,32 +185,6 @@ fun AppPickerScreen(store: SettingsStore, onBack: () -> Unit) {
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun AppRow(app: AppEntry, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .padding(horizontal = 20.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Start,
-    ) {
-        AppIcon(app.packageName)
-        Spacer(Modifier.width(16.dp))
-        Column(Modifier.weight(1f)) {
-            Text(app.label, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                app.packageName,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Checkbox(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
@@ -205,7 +209,7 @@ private fun AppIcon(packageName: String) {
     }
     val modifier = Modifier
         .size(40.dp)
-        .clip(RoundedCornerShape(10.dp))
+        .clip(MaterialShapes.Cookie9Sided.toShape())
     val bitmap = icon
     if (bitmap != null) {
         Image(bitmap, contentDescription = null, modifier = modifier)

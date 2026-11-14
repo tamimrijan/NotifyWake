@@ -2,6 +2,15 @@ package com.notifywake.app.ui
 
 import android.content.Context
 import android.text.format.DateUtils
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,42 +18,47 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.automirrored.outlined.List
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Favorite
-import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.notifywake.app.data.FilterMode
@@ -53,7 +67,6 @@ import com.notifywake.app.data.WakeSettings
 import com.notifywake.app.service.TestNotifier
 import com.notifywake.app.service.WakeListenerService
 import com.notifywake.app.util.StatusSnapshot
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val TEST_DELAY_SECONDS = 8
@@ -72,36 +85,15 @@ fun HomeTab(
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    TabScaffold(title = "NotifyWake", snackbarHostState = snackbar) {
+    TabScaffold(title = "NotifyWake", subtitle = "Wake screen on notifications", snackbarHostState = snackbar) {
         HeroCard(settings, status, connected, onToggle = store::setEnabled)
 
-        SetupSummary(checks, onOpen = { onNavigate(Tab.PERMISSIONS) })
-
-        SettingsGroup("At a glance") {
-            ListItem(
-                headlineContent = { Text("Apps that wake the screen") },
-                supportingContent = {
-                    Text(
-                        if (settings.filterMode == FilterMode.ALL) "All apps"
-                        else "${settings.selectedApps.size} selected app${if (settings.selectedApps.size == 1) "" else "s"}"
-                    )
-                },
-                leadingContent = { Icon(Icons.AutoMirrored.Outlined.List,contentDescription = null) },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
-                colors = transparentListItemColors(),
-                modifier = Modifier.clickable { onNavigate(Tab.SETTINGS) },
-            )
-            ListItem(
-                headlineContent = { Text("Cooldown") },
-                supportingContent = { Text(cooldownLabel(settings.cooldownSeconds)) },
-                leadingContent = { Icon(Icons.Outlined.DateRange, contentDescription = null) },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
-                colors = transparentListItemColors(),
-                modifier = Modifier.clickable { onNavigate(Tab.SETTINGS) },
-            )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            PermissionTile(checks, Modifier.weight(1f), onClick = { onNavigate(Tab.PERMISSIONS) })
+            WakeCountTile(settings, Modifier.weight(1f))
         }
 
-        TestGroup(
+        TestCard(
             settings = settings,
             status = status,
             connected = connected,
@@ -109,29 +101,30 @@ fun HomeTab(
             onRequestNotifications = onRequestNotifications,
         )
 
-        ActivityGroup(settings)
-
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(top = 4.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                Icons.Outlined.Favorite,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(16.dp),
+        SegmentedSection("At a glance") {
+            val chevron: @Composable () -> Unit = {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+            }
+            NavItem(
+                index = 0, count = 2,
+                title = "Apps that wake the screen",
+                description = if (settings.filterMode == FilterMode.ALL) "All apps"
+                else "${settings.selectedApps.size} selected app${if (settings.selectedApps.size == 1) "" else "s"}",
+                icon = Icons.AutoMirrored.Outlined.List,
+                trailing = chevron,
+                onClick = { onNavigate(Tab.SETTINGS) },
             )
-            Spacer(Modifier.width(6.dp))
-            Text(
-                "Built by $DEVELOPER_NAME",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
+            NavItem(
+                index = 1, count = 2,
+                title = "Cooldown",
+                description = cooldownLabel(settings.cooldownSeconds),
+                icon = Icons.Outlined.DateRange,
+                trailing = chevron,
+                onClick = { onNavigate(Tab.SETTINGS) },
             )
         }
+
+        CreditFooter()
     }
 }
 
@@ -150,15 +143,28 @@ private fun HeroCard(
 ) {
     val active = settings.enabled && status.notificationAccess
     val (headline, detail) = when {
-        !status.notificationAccess -> "Setup needed" to "Grant Notification access in the Permissions tab."
+        !status.notificationAccess -> "Setup" to "Grant Notification access in the Permissions tab."
         !settings.enabled -> "Paused" to "New notifications won't turn the screen on."
-        !connected -> "Starting…" to "Waiting for Android to connect the notification listener."
+        !connected -> "Starting" to "Waiting for Android to connect the listener…"
         else -> "Active" to "Your screen lights up when a new notification arrives."
     }
-    val container = if (active) MaterialTheme.colorScheme.primaryContainer
-    else MaterialTheme.colorScheme.surfaceContainerHigh
-    val onContainer = if (active) MaterialTheme.colorScheme.onPrimaryContainer
-    else MaterialTheme.colorScheme.onSurface
+    val colors = MaterialTheme.colorScheme
+    val container by animateColorAsState(
+        if (active) colors.primary else colors.surfaceContainerHigh,
+        MaterialTheme.motionScheme.defaultEffectsSpec(), label = "heroContainer",
+    )
+    val onContainer by animateColorAsState(
+        if (active) colors.onPrimary else colors.onSurface,
+        MaterialTheme.motionScheme.defaultEffectsSpec(), label = "heroContent",
+    )
+
+    // Slowly spinning cookie while active, calm circle while paused.
+    val spin = rememberInfiniteTransition(label = "spin")
+    val rotation by spin.animateFloat(
+        0f, 360f,
+        infiniteRepeatable(tween(14_000, easing = LinearEasing), RepeatMode.Restart),
+        label = "rotation",
+    )
 
     Card(
         shape = MaterialTheme.shapes.extraLarge,
@@ -171,70 +177,116 @@ private fun HeroCard(
                 .padding(24.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier
-                        .size(56.dp)
-                        .background(
-                            if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                            CircleShape,
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Filled.Notifications,
-                        contentDescription = null,
-                        tint = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.surface,
-                    )
+                AnimatedContent(targetState = active, label = "heroShape") { on ->
+                    Box(
+                        Modifier
+                            .size(72.dp)
+                            .graphicsLayer { rotationZ = if (on) rotation else 0f }
+                            .clip((if (on) MaterialShapes.Cookie9Sided else MaterialShapes.Circle).toShape())
+                            .background(if (on) colors.primaryContainer else colors.outlineVariant),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Filled.Notifications,
+                            contentDescription = null,
+                            tint = if (on) colors.onPrimaryContainer else colors.onSurfaceVariant,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .graphicsLayer { rotationZ = if (on) -rotation else 0f },
+                        )
+                    }
                 }
                 Spacer(Modifier.weight(1f))
-                Switch(checked = settings.enabled, onCheckedChange = onToggle)
+                Switch(
+                    checked = settings.enabled,
+                    onCheckedChange = onToggle,
+                    thumbContent = {
+                        Icon(
+                            if (settings.enabled) Icons.Filled.Check else Icons.Filled.Close,
+                            contentDescription = null,
+                            modifier = Modifier.size(SwitchDefaults.IconSize),
+                        )
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedTrackColor = colors.primaryContainer,
+                        checkedThumbColor = colors.primary,
+                        checkedIconColor = colors.primaryContainer,
+                    ),
+                )
             }
-            Spacer(Modifier.size(20.dp))
-            Text("Wake screen on notifications", style = MaterialTheme.typography.titleMedium)
-            Text(headline, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.size(4.dp))
-            Text(detail, style = MaterialTheme.typography.bodyMedium)
+            Spacer(Modifier.size(28.dp))
+            AnimatedContent(targetState = headline, label = "headline") { text ->
+                Text(text, style = MaterialTheme.typography.displayLarge)
+            }
+            Spacer(Modifier.size(6.dp))
+            Text(detail, style = MaterialTheme.typography.bodyLarge)
         }
     }
 }
 
 @Composable
-private fun SetupSummary(checks: List<PermissionCheck>, onOpen: () -> Unit) {
-    val missingRequired = checks.count { it.required && !it.granted }
-    val missingAny = checks.count { !it.granted }
-    val (icon, tint, title, text) = when {
-        missingRequired > 0 -> Quad(
-            Icons.Filled.Warning, MaterialTheme.colorScheme.error,
-            "$missingRequired required permission${if (missingRequired == 1) "" else "s"} missing",
-            "Tap to fix in the Permissions tab.",
-        )
-        missingAny > 0 -> Quad(
-            Icons.Filled.Warning, StatusColors.warn,
-            "Almost ready",
-            "$missingAny recommended permission${if (missingAny == 1) "" else "s"} not granted yet.",
-        )
-        else -> Quad(
-            Icons.Filled.CheckCircle, StatusColors.ok,
-            "All permissions granted",
-            "Everything NotifyWake needs is in place.",
-        )
-    }
-    SettingsGroup(header = null) {
-        ListItem(
-            headlineContent = { Text(title) },
-            supportingContent = { Text(text) },
-            leadingContent = { Icon(icon, contentDescription = null, tint = tint) },
-            trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
-            colors = transparentListItemColors(),
-            modifier = Modifier.clickable(onClick = onOpen),
-        )
+private fun PermissionTile(checks: List<PermissionCheck>, modifier: Modifier, onClick: () -> Unit) {
+    val done = checks.count { it.granted }
+    val total = checks.size.coerceAtLeast(1)
+    val allSet = done == checks.size
+    Card(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(
+            containerColor = if (allSet) MaterialTheme.colorScheme.secondaryContainer
+            else MaterialTheme.colorScheme.tertiaryContainer,
+        ),
+        modifier = modifier.aspectRatio(1f),
+    ) {
+        Column(Modifier.padding(18.dp)) {
+            Box(contentAlignment = Alignment.Center) {
+                CircularWavyProgressIndicator(
+                    progress = { done.toFloat() / total },
+                    modifier = Modifier.size(64.dp),
+                )
+                Text("$done/${checks.size}", style = MaterialTheme.typography.titleMedium)
+            }
+            Spacer(Modifier.weight(1f))
+            Text("Permissions", style = MaterialTheme.typography.titleMedium)
+            Text(
+                if (allSet) "All set" else "${checks.size - done} to fix",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
     }
 }
 
-private data class Quad<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
+@Composable
+private fun WakeCountTile(settings: WakeSettings, modifier: Modifier) {
+    val ctx = LocalContext.current
+    Card(
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        modifier = modifier.aspectRatio(1f),
+    ) {
+        Column(Modifier.padding(18.dp)) {
+            Text(
+                "${settings.wakeCount}",
+                style = MaterialTheme.typography.displayMedium,
+                maxLines = 1,
+            )
+            Spacer(Modifier.weight(1f))
+            Text("Screen wakes", style = MaterialTheme.typography.titleMedium)
+            val last = settings.lastWakeApp
+            Text(
+                if (last == null) "None yet"
+                else "${appLabel(ctx, last)}, " + DateUtils.getRelativeTimeSpanString(
+                    settings.lastWakeAt, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 2,
+            )
+        }
+    }
+}
 
 @Composable
-private fun TestGroup(
+private fun TestCard(
     settings: WakeSettings,
     status: StatusSnapshot,
     connected: Boolean,
@@ -242,66 +294,97 @@ private fun TestGroup(
     onRequestNotifications: () -> Unit,
 ) {
     val ctx = LocalContext.current
-    var remaining by rememberSaveable { mutableIntStateOf(0) }
     var runId by remember { mutableIntStateOf(0) }
+    val progress = remember { Animatable(0f) }
+    val running = progress.value > 0f
 
     LaunchedEffect(runId) {
-        if (runId == 0) return@LaunchedEffect
-        remaining = TEST_DELAY_SECONDS
-        while (remaining > 0) {
-            delay(1000)
-            remaining--
+        if (runId == 0) {
+            progress.snapTo(0f)
+            return@LaunchedEffect
         }
+        progress.snapTo(1f)
+        progress.animateTo(0f, tween(TEST_DELAY_SECONDS * 1000, easing = LinearEasing))
     }
 
-    SettingsGroup(
-        header = "Test it",
-        footer = "Screen stayed dark? Check the Permissions tab, then the Samsung steps in Tips.",
+    Card(
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("Test it", style = MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.size(6.dp))
             Text(
-                "Tap Start, then press the side button to turn the screen off. After " +
-                    "$TEST_DELAY_SECONDS seconds a test notification arrives and your screen should " +
-                    "light up on the lock screen.",
+                if (running) "Turn the screen off now"
+                else "Tap Start, then press the side button. In $TEST_DELAY_SECONDS seconds your screen " +
+                    "should light up on the lock screen.",
                 style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
             )
-            Spacer(Modifier.size(14.dp))
-            if (remaining > 0) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedButton(onClick = {
-                        TestNotifier.cancel()
-                        remaining = 0
-                        runId = 0
-                    }) { Text("Cancel") }
-                    Spacer(Modifier.width(16.dp))
-                    Text(
-                        "Screen off now… $remaining",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            } else {
-                Button(
-                    onClick = {
-                        when {
-                            !settings.enabled -> onMessage("Turn on the main switch first.")
-                            !status.notificationAccess -> onMessage("Grant Notification access first.")
-                            !status.canPostNotifications -> {
-                                onMessage("Allow notifications so the test can be shown.")
-                                onRequestNotifications()
-                            }
-                            else -> {
-                                if (!connected) WakeListenerService.requestRebindSafely(ctx)
-                                TestNotifier.schedule(ctx, TEST_DELAY_SECONDS * 1000L)
-                                runId++
-                            }
+            Spacer(Modifier.size(20.dp))
+
+            AnimatedContent(targetState = running, label = "test") { isRunning ->
+                if (isRunning) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(contentAlignment = Alignment.Center) {
+                            CircularWavyProgressIndicator(
+                                progress = { progress.value },
+                                modifier = Modifier.size(150.dp),
+                            )
+                            Text(
+                                "${kotlin.math.ceil(progress.value * TEST_DELAY_SECONDS).toInt()}",
+                                style = MaterialTheme.typography.displayLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
                         }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Start test")
+                        Spacer(Modifier.size(16.dp))
+                        OutlinedButton(
+                            onClick = {
+                                TestNotifier.cancel()
+                                runId = 0
+                            },
+                            shapes = ButtonDefaults.shapes(),
+                        ) { Text("Cancel") }
+                    }
+                } else {
+                    val height = ButtonDefaults.MediumContainerHeight
+                    Button(
+                        onClick = {
+                            when {
+                                !settings.enabled -> onMessage("Turn on the main switch first.")
+                                !status.notificationAccess -> onMessage("Grant Notification access first.")
+                                !status.canPostNotifications -> {
+                                    onMessage("Allow notifications so the test can be shown.")
+                                    onRequestNotifications()
+                                }
+                                else -> {
+                                    if (!connected) WakeListenerService.requestRebindSafely(ctx)
+                                    TestNotifier.schedule(ctx, TEST_DELAY_SECONDS * 1000L)
+                                    runId++
+                                }
+                            }
+                        },
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.contentPaddingFor(height),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = height),
+                    ) {
+                        Icon(
+                            Icons.Filled.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(ButtonDefaults.iconSizeFor(height)),
+                        )
+                        Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(height)))
+                        Text("Start test", style = ButtonDefaults.textStyleFor(height))
+                    }
                 }
             }
         }
@@ -309,38 +392,32 @@ private fun TestGroup(
 }
 
 @Composable
-private fun ActivityGroup(settings: WakeSettings) {
-    val ctx = LocalContext.current
-    SettingsGroup("Activity") {
-        if (settings.wakeCount == 0 || settings.lastWakeApp == null) {
-            ListItem(
-                headlineContent = { Text("No wakes yet") },
-                supportingContent = { Text("Run the test above to try it.") },
-                colors = transparentListItemColors(),
-            )
-        } else {
-            val app = remember(settings.lastWakeApp) { appLabel(ctx, settings.lastWakeApp) }
-            val whenText = DateUtils.getRelativeTimeSpanString(
-                settings.lastWakeAt, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS
-            )
-            ListItem(
-                overlineContent = { Text("Screen woken") },
-                headlineContent = {
-                    Text(
-                        "${settings.wakeCount} time${if (settings.wakeCount == 1) "" else "s"}",
-                        style = MaterialTheme.typography.headlineSmall,
-                    )
-                },
-                supportingContent = { Text("Last: $app, $whenText") },
-                colors = transparentListItemColors(),
-            )
-        }
+fun CreditFooter() {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.Outlined.Favorite,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.tertiary,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            "Built by $DEVELOPER_NAME",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
 private fun appLabel(ctx: Context, pkg: String): String = try {
-    if (pkg == ctx.packageName) "Test notification"
+    if (pkg == ctx.packageName) "Test"
     else ctx.packageManager.getApplicationLabel(ctx.packageManager.getApplicationInfo(pkg, 0)).toString()
 } catch (_: Exception) {
-    pkg
+    pkg.substringAfterLast('.')
 }

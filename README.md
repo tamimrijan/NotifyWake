@@ -12,7 +12,7 @@
 
 ![Kotlin](https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)
-![Material 3](https://img.shields.io/badge/Material%203-757575?style=for-the-badge&logo=materialdesign&logoColor=white)
+![Material 3 Expressive](https://img.shields.io/badge/Material%203-Expressive-7438D6?style=for-the-badge&logo=materialdesign&logoColor=white)
 ![No Root](https://img.shields.io/badge/No%20Root-Required-success?style=for-the-badge)
 
 <br>
@@ -50,13 +50,13 @@
 | 🧪 **One-tap test** | Check that everything works in 8 seconds |
 | 🔋 **Battery friendly** | No background polling and no permanent notification |
 | 🕵️ **Private** | No internet permission. Notification content is never read or stored |
-| 🎨 **Material 3 design** | Clean tabbed UI with dynamic colors and dark mode |
+| 🎨 **Material 3 Expressive** | Morphing shapes, wavy progress, connected buttons, springy motion, dark mode and optional wallpaper colors |
 
 ---
 
 ## 🚀 Quick start
 
-1. **Download** `NotifyWake-1.1.0.apk` from [Releases](https://github.com/tamimrijan/NotifyWake/releases/latest).
+1. **Download** `NotifyWake-1.2.0.apk` from [Releases](https://github.com/tamimrijan/NotifyWake/releases/latest).
 2. **Install it.** Open the APK and allow *Install unknown apps* if asked.
 3. **Open NotifyWake → Permissions tab** and tap each button.
 4. **Samsung users:** follow the steps in the **Tips** tab (takes 1 minute).
@@ -89,12 +89,12 @@
 <summary><b>1. Install the APK</b></summary>
 <br>
 
-1. Copy `NotifyWake-1.1.0.apk` to your phone (USB, Quick Share, Google Drive, or download it from Releases on the phone).
+1. Copy `NotifyWake-1.2.0.apk` to your phone (USB, Quick Share, Google Drive, or download it from Releases on the phone).
 2. Open **My Files** → find the APK → tap it.
 3. If asked, allow **Install unknown apps** for My Files (or your browser), then tap **Install**.
 4. If Play Protect shows *"Unsafe app blocked"*, tap **More details → Install anyway**.
 
-With USB debugging on, you can also run `adb install -r NotifyWake-1.1.0.apk`.
+With USB debugging on, you can also run `adb install -r NotifyWake-1.2.0.apk`.
 
 </details>
 

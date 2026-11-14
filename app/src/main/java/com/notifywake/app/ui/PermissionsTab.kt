@@ -4,23 +4,31 @@ import android.content.Context
 import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.draw.clip
 import com.notifywake.app.data.WakeSettings
 import com.notifywake.app.util.StatusSnapshot
 import com.notifywake.app.util.SystemStatus
@@ -35,7 +43,7 @@ data class PermissionCheck(
     val onAction: () -> Unit,
 )
 
-/** Everything the app needs, in display order. Shared by the Permissions tab, Home summary and nav badge. */
+/** Everything the app needs, in display order. Shared by the Permissions tab, Home tile and nav badge. */
 fun permissionChecks(
     ctx: Context,
     status: StatusSnapshot,
@@ -109,7 +117,7 @@ fun PermissionsTab(status: StatusSnapshot, checks: List<PermissionCheck>) {
     val ctx = LocalContext.current
     val done = checks.count { it.granted }
 
-    TabScaffold(title = "Permissions") {
+    TabScaffold(title = "Permissions", subtitle = "Grant these once") {
         Card(
             shape = MaterialTheme.shapes.extraLarge,
             colors = CardDefaults.cardColors(
@@ -118,21 +126,27 @@ fun PermissionsTab(status: StatusSnapshot, checks: List<PermissionCheck>) {
             ),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    if (done == checks.size) "All set" else "$done of ${checks.size} ready",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                )
-                LinearProgressIndicator(
+            Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text("$done", style = MaterialTheme.typography.displayLarge)
+                    Text(
+                        " / ${checks.size}",
+                        style = MaterialTheme.typography.headlineMedium,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        if (done == checks.size) "All set ✓" else "ready",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 10.dp),
+                    )
+                }
+                LinearWavyProgressIndicator(
                     progress = { if (checks.isEmpty()) 1f else done.toFloat() / checks.size },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(MaterialTheme.shapes.small),
+                    modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
-                    "Grant these once. The app keeps working after you close it.",
+                    "The app keeps working after you close it or restart the phone.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -141,41 +155,78 @@ fun PermissionsTab(status: StatusSnapshot, checks: List<PermissionCheck>) {
         listOf(true to "Required", false to "Recommended").forEach { (required, header) ->
             val group = checks.filter { it.required == required }
             if (group.isNotEmpty()) {
-                SettingsGroup(header) {
-                    group.forEach { c ->
-                        PermissionListItem(
-                            state = when {
-                                c.granted -> CheckState.OK
-                                c.required -> CheckState.MISSING_REQUIRED
-                                else -> CheckState.MISSING_OPTIONAL
-                            },
-                            title = c.title,
-                            description = if (c.granted) c.grantedText else c.missingText,
-                            actionLabel = c.actionLabel,
-                            onAction = c.onAction,
-                        )
-                    }
+                SegmentedSection(header) {
+                    group.forEachIndexed { i, c -> PermissionItem(i, group.size, c) }
                 }
             }
         }
 
         if (!status.notificationAccess && Build.VERSION.SDK_INT >= 33) {
-            SettingsGroup("Can't turn on Notification access?") {
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Card(
+                shape = MaterialTheme.shapes.extraLarge,
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(vertical = 18.dp)) {
+                    Text(
+                        "Can't turn on Notification access?",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                    )
                     Text(
                         "Android blocks this for apps installed from an APK until you allow it:",
                         style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 6.dp),
                     )
-                    Spacer(Modifier.size(4.dp))
+                    NumberedStep(1, "Open App info (button below).")
+                    NumberedStep(2, "Tap ⋮ in the top-right corner → Allow restricted settings.")
+                    NumberedStep(3, "Confirm with your PIN or fingerprint, then tap Grant access again.")
+                    Button(
+                        onClick = { SystemStatus.openAppDetails(ctx) },
+                        shapes = ButtonDefaults.shapes(),
+                        modifier = Modifier.padding(start = 20.dp, top = 8.dp),
+                    ) { Text("Open App info") }
                 }
-                NumberedStep(1, "Open App info (button below).")
-                NumberedStep(2, "Tap ⋮ in the top-right corner → Allow restricted settings.")
-                NumberedStep(3, "Confirm with your PIN or fingerprint, then tap Grant access again.")
-                TextButton(
-                    onClick = { SystemStatus.openAppDetails(ctx) },
-                    modifier = Modifier.padding(start = 8.dp),
-                ) { Text("Open App info") }
             }
         }
     }
+}
+
+@Composable
+private fun PermissionItem(index: Int, count: Int, c: PermissionCheck) {
+    val colors = MaterialTheme.colorScheme
+    SegmentedListItem(
+        onClick = { if (!c.granted) c.onAction() },
+        shapes = ListItemDefaults.segmentedShapes(index, count),
+        leadingContent = {
+            when {
+                c.granted -> ShapeIcon(
+                    Icons.Filled.Check, MaterialShapes.Cookie9Sided,
+                    container = StatusColors.ok, content = colors.surface,
+                )
+                c.required -> ShapeIcon(
+                    Icons.Filled.Warning, MaterialShapes.SoftBurst,
+                    container = colors.errorContainer, content = colors.onErrorContainer,
+                )
+                else -> ShapeIcon(
+                    Icons.Filled.Info, MaterialShapes.Clover4Leaf,
+                    container = colors.tertiaryContainer, content = colors.onTertiaryContainer,
+                )
+            }
+        },
+        supportingContent = {
+            Column {
+                Text(if (c.granted) c.grantedText else c.missingText)
+                if (!c.granted) {
+                    Spacer(Modifier.size(10.dp))
+                    FilledTonalButton(onClick = c.onAction, shapes = ButtonDefaults.shapes()) {
+                        Text(c.actionLabel)
+                    }
+                }
+            }
+        },
+    ) { Text(c.title) }
 }

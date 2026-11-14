@@ -17,6 +17,8 @@ data class WakeSettings(
     val ignoreOngoing: Boolean,
     val respectDnd: Boolean,
     val backupWake: Boolean,
+    /** Use Android 12+ wallpaper colours instead of the NotifyWake purple palette. */
+    val wallpaperColors: Boolean,
     val wakeCount: Int,
     val lastWakeAt: Long,
     val lastWakeApp: String?,
@@ -45,6 +47,7 @@ class SettingsStore(context: Context) {
         ignoreOngoing = prefs.getBoolean(K_IGNORE_ONGOING, true),
         respectDnd = prefs.getBoolean(K_RESPECT_DND, true),
         backupWake = prefs.getBoolean(K_BACKUP, true),
+        wallpaperColors = prefs.getBoolean(K_WALLPAPER_COLORS, false),
         wakeCount = prefs.getInt(K_COUNT, 0),
         lastWakeAt = prefs.getLong(K_LAST_AT, 0L),
         lastWakeApp = prefs.getString(K_LAST_APP, null),
@@ -62,6 +65,7 @@ class SettingsStore(context: Context) {
     fun setIgnoreOngoing(v: Boolean) = edit { putBoolean(K_IGNORE_ONGOING, v) }
     fun setRespectDnd(v: Boolean) = edit { putBoolean(K_RESPECT_DND, v) }
     fun setBackupWake(v: Boolean) = edit { putBoolean(K_BACKUP, v) }
+    fun setWallpaperColors(v: Boolean) = edit { putBoolean(K_WALLPAPER_COLORS, v) }
 
     fun recordWake(packageName: String) = edit {
         putInt(K_COUNT, prefs.getInt(K_COUNT, 0) + 1)
@@ -80,6 +84,7 @@ class SettingsStore(context: Context) {
         const val K_IGNORE_ONGOING = "ignore_ongoing"
         const val K_RESPECT_DND = "respect_dnd"
         const val K_BACKUP = "backup_wake"
+        const val K_WALLPAPER_COLORS = "wallpaper_colors"
         const val K_COUNT = "wake_count"
         const val K_LAST_AT = "last_wake_at"
         const val K_LAST_APP = "last_wake_app"
